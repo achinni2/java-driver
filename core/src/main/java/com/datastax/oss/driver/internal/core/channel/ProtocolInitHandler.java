@@ -294,9 +294,15 @@ class ProtocolInitHandler extends ConnectInitHandler {
 
     @Override
     void fail(String message, Throwable cause) {
-      Throwable finalException =
-          (message == null) ? cause : new ConnectionInitException(message, cause);
-      setConnectFailure(finalException);
+      if (this.step == Step.STARTUP) {
+        setConnectFailure(
+            new ConnectionInitException(
+                "Connection refused, possible wrong contact points", cause));
+      } else {
+        Throwable finalException =
+            (message == null) ? cause : new ConnectionInitException(message, cause);
+        setConnectFailure(finalException);
+      }
     }
 
     private Authenticator buildAuthenticator(SocketAddress address, String authenticator) {
