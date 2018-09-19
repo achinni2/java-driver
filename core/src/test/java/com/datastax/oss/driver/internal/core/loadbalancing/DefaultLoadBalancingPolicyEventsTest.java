@@ -23,23 +23,17 @@ import static org.mockito.Mockito.never;
 import com.datastax.oss.driver.api.core.loadbalancing.NodeDistance;
 import com.datastax.oss.driver.shaded.guava.common.collect.ImmutableMap;
 import com.datastax.oss.driver.shaded.guava.common.collect.ImmutableSet;
-import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mockito;
 import org.mockito.junit.MockitoJUnitRunner;
 
-@RunWith(MockitoJUnitRunner.Silent.class)
+@RunWith(MockitoJUnitRunner.class)
 public class DefaultLoadBalancingPolicyEventsTest extends DefaultLoadBalancingPolicyTestBase {
 
-  private DefaultLoadBalancingPolicy policy;
-
-  @Before
-  @Override
-  public void setup() {
-    super.setup();
-
-    policy = new DefaultLoadBalancingPolicy("test", "dc1", filter, context, true);
+  private DefaultLoadBalancingPolicy createPolicy() {
+    DefaultLoadBalancingPolicy policy =
+        new DefaultLoadBalancingPolicy("test", "dc1", filter, context, true);
     policy.init(
         ImmutableMap.of(ADDRESS1, node1, ADDRESS2, node2),
         distanceReporter,
@@ -47,10 +41,14 @@ public class DefaultLoadBalancingPolicyEventsTest extends DefaultLoadBalancingPo
     assertThat(policy.localDcLiveNodes).containsExactlyInAnyOrder(node1, node2);
 
     Mockito.reset(distanceReporter);
+    return policy;
   }
 
   @Test
   public void should_remove_down_node_from_live_set() {
+    // Given
+    DefaultLoadBalancingPolicy policy = createPolicy();
+
     // When
     policy.onDown(node2);
 
@@ -61,12 +59,23 @@ public class DefaultLoadBalancingPolicyEventsTest extends DefaultLoadBalancingPo
 
   @Test
   public void should_remove_down_node_from_live_set_when_filtered() {
+    // Given
     Mockito.when(filter.test(node2)).thenReturn(true);
-    should_remove_down_node_from_live_set();
+    DefaultLoadBalancingPolicy policy = createPolicy();
+
+    // When
+    policy.onDown(node2);
+
+    // Then
+    assertThat(policy.localDcLiveNodes).containsExactlyInAnyOrder(node1);
+    Mockito.verify(distanceReporter, never()).setDistance(eq(node2), any(NodeDistance.class));
   }
 
   @Test
   public void should_remove_removed_node_from_live_set() {
+    // Given
+    DefaultLoadBalancingPolicy policy = createPolicy();
+
     // When
     policy.onRemove(node2);
 
@@ -77,12 +86,23 @@ public class DefaultLoadBalancingPolicyEventsTest extends DefaultLoadBalancingPo
 
   @Test
   public void should_remove_removed_node_from_live_set_when_filtered() {
+    // Given
     Mockito.when(filter.test(node2)).thenReturn(true);
-    should_remove_removed_node_from_live_set();
+    DefaultLoadBalancingPolicy policy = createPolicy();
+
+    // When
+    policy.onRemove(node2);
+
+    // Then
+    assertThat(policy.localDcLiveNodes).containsExactlyInAnyOrder(node1);
+    Mockito.verify(distanceReporter, never()).setDistance(eq(node2), any(NodeDistance.class));
   }
 
   @Test
   public void should_set_added_node_to_local() {
+    // Given
+    DefaultLoadBalancingPolicy policy = createPolicy();
+
     // When
     policy.onAdd(node3);
 
@@ -96,6 +116,7 @@ public class DefaultLoadBalancingPolicyEventsTest extends DefaultLoadBalancingPo
   public void should_ignore_added_node_when_filtered() {
     // Given
     Mockito.when(filter.test(node3)).thenReturn(false);
+    DefaultLoadBalancingPolicy policy = createPolicy();
 
     // When
     policy.onAdd(node3);
@@ -109,6 +130,7 @@ public class DefaultLoadBalancingPolicyEventsTest extends DefaultLoadBalancingPo
   public void should_ignore_added_node_when_remote_dc() {
     // Given
     Mockito.when(node3.getDatacenter()).thenReturn("dc2");
+    DefaultLoadBalancingPolicy policy = createPolicy();
 
     // When
     policy.onAdd(node3);
@@ -120,6 +142,9 @@ public class DefaultLoadBalancingPolicyEventsTest extends DefaultLoadBalancingPo
 
   @Test
   public void should_add_up_node_to_live_set() {
+    // Given
+    DefaultLoadBalancingPolicy policy = createPolicy();
+
     // When
     policy.onUp(node3);
 
@@ -132,6 +157,7 @@ public class DefaultLoadBalancingPolicyEventsTest extends DefaultLoadBalancingPo
   public void should_ignore_up_node_when_filtered() {
     // Given
     Mockito.when(filter.test(node3)).thenReturn(false);
+    DefaultLoadBalancingPolicy policy = createPolicy();
 
     // When
     policy.onUp(node3);
@@ -145,6 +171,7 @@ public class DefaultLoadBalancingPolicyEventsTest extends DefaultLoadBalancingPo
   public void should_ignore_up_node_when_remote_dc() {
     // Given
     Mockito.when(node3.getDatacenter()).thenReturn("dc2");
+    DefaultLoadBalancingPolicy policy = createPolicy();
 
     // When
     policy.onUp(node3);
